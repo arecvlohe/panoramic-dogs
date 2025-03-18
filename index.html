@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Panoramic Dogs</title>
+  <script type="text/javascript" src="elm.js"></script>
+</head>
+
+<body>
+  <div id="app"></div>
+</body>
+
+<script type="text/javascript">
+
+var storedData = localStorage.getItem('panoramic-all');
+var flags = storedData ? JSON.parse(storedData) : null;
+
+var app = Elm.Main.init({
+	node: document.getElementById('app'),
+	flags: flags
+});
+
+app.ports.setStorage.subscribe(function([breed, data]) {
+    localStorage.setItem(`panoramic-${breed}`, JSON.stringify(data));
+});
+
+app.ports.getStorage.subscribe(function(breed) {
+		const data = localStorage.getItem(`panoramic-${breed}`) 
+		const d = data ? JSON.parse(data) : null
+		if (breed === 'all') {
+			app.ports.returnAllStorage.send(d)
+		} else {
+			app.ports.returnBreedStorage.send([breed, d])
+		}
+})
+</script>
+
+</html>
