@@ -26,9 +26,9 @@ app.ports.setStorage.subscribe(function([breed, data]) {
 });
 
 app.ports.requestStorage.subscribe(function(breed) {
-		const data = localStorage.getItem(`panoramic-${breed}`) 
-		const d = data ? JSON.parse(data) : null
-		app.ports.returnStorage.send([breed, d])
+    const data = localStorage.getItem(`panoramic-${breed}`) 
+    const d = data ? JSON.parse(data) : null
+    app.ports.returnStorage.send([breed, d])
 })
 </script>
 
