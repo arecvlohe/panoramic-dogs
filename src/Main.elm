@@ -168,7 +168,7 @@ main : Program E.Value Model Msg
 main =
     Browser.element
         { init = init
-        , update = updateWithStorage
+        , update = update
         , view = view
         , subscriptions = subscriptions
         }
@@ -204,33 +204,6 @@ subscriptions _ =
     Sub.batch [ returnStorage GetLocalData ]
 
 
-updateWithStorage : Msg -> Model -> ( Model, Cmd Msg )
-updateWithStorage msg oldModel =
-    let
-        ( newModel, cmds ) =
-            update msg oldModel
-    in
-    case msg of
-        GetDogsList _ ->
-            case newModel.view of
-                Success v ->
-                    ( newModel, Cmd.batch [ setStorage ( "all", listEncoder v.data ), cmds ] )
-
-                _ ->
-                    ( newModel, cmds )
-
-        GetBreedPics name _ ->
-            case newModel.view of
-                Success v ->
-                    ( newModel, Cmd.batch [ setStorage ( name, listEncoder v.data ), cmds ] )
-
-                _ ->
-                    ( newModel, cmds )
-
-        _ ->
-            ( newModel, cmds )
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -252,7 +225,7 @@ update msg model =
                                     , data = list
                                     }
                           }
-                        , Cmd.none
+                        , setStorage ( "all", listEncoder list )
                         )
 
                 Err _ ->
@@ -308,7 +281,7 @@ update msg model =
                                     }
                             , page = { cursor = 0, total = List.length images }
                           }
-                        , Cmd.none
+                        , setStorage ( name, listEncoder images )
                         )
 
                 Err _ ->
