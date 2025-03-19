@@ -50,7 +50,7 @@ getBreedPics : String -> Cmd Msg
 getBreedPics name =
     Http.get
         { url = dogsBaseUrl ++ "/breed/" ++ name ++ "/images"
-        , expect = Http.expectJson (GetBreedPics name) dogPicsResponseDecoder
+        , expect = Http.expectJson (GetBreedPics name) breedPicsResponseDecoder
         }
 
 
@@ -80,7 +80,7 @@ type alias DogsDictList =
     Dict String (List String)
 
 
-type alias DogPicturesResponse =
+type alias BreedPicsResponse =
     { message : List String, status : String }
 
 
@@ -95,9 +95,9 @@ dogsListResponseDecoder =
         (D.field "status" D.string)
 
 
-dogPicsResponseDecoder : D.Decoder DogPicturesResponse
-dogPicsResponseDecoder =
-    D.map2 DogPicturesResponse
+breedPicsResponseDecoder : D.Decoder BreedPicsResponse
+breedPicsResponseDecoder =
+    D.map2 BreedPicsResponse
         (D.field "message" (D.list D.string))
         (D.field "status" D.string)
 
@@ -145,7 +145,7 @@ type Direction
 
 type Msg
     = GetDogsList (Result Http.Error DogsListResponse)
-    | GetBreedPics String (Result Http.Error DogPicturesResponse)
+    | GetBreedPics String (Result Http.Error BreedPicsResponse)
     | ChangeView String
     | Go Direction
     | GetLocalData ( String, Maybe (List String) )
