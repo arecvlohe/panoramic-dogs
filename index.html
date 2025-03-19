@@ -25,14 +25,10 @@ app.ports.setStorage.subscribe(function([breed, data]) {
     localStorage.setItem(`panoramic-${breed}`, JSON.stringify(data));
 });
 
-app.ports.getStorage.subscribe(function(breed) {
+app.ports.requestStorage.subscribe(function(breed) {
 		const data = localStorage.getItem(`panoramic-${breed}`) 
 		const d = data ? JSON.parse(data) : null
-		if (breed === 'all') {
-			app.ports.returnAllStorage.send(d)
-		} else {
-			app.ports.returnBreedStorage.send([breed, d])
-		}
+		app.ports.returnStorage.send([breed, d])
 })
 </script>
 

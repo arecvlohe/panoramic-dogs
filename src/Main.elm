@@ -42,7 +42,7 @@ getDogsList : Cmd Msg
 getDogsList =
     Http.get
         { url = dogsBaseUrl ++ "/breeds/list/all"
-        , expect = Http.expectJson DogsList dogsListResponseDecoder
+        , expect = Http.expectJson GetDogsList dogsListResponseDecoder
         }
 
 
@@ -50,7 +50,7 @@ getBreedPics : String -> Cmd Msg
 getBreedPics name =
     Http.get
         { url = dogsBaseUrl ++ "/breed/" ++ name ++ "/images"
-        , expect = Http.expectJson (DogPictures name) dogPicsResponseDecoder
+        , expect = Http.expectJson (GetBreedPics name) dogPicsResponseDecoder
         }
 
 
@@ -138,15 +138,17 @@ type alias Model =
     }
 
 
+type Direction
+    = Back
+    | Forward
+
+
 type Msg
-    = DogsList (Result Http.Error DogsListResponse)
-    | DogPictures String (Result Http.Error DogPicturesResponse)
-    | ViewBreed String
-    | ViewAll
-    | GoToNextPage
-    | GoToPreviousPage
-    | GetLocalAllData (Maybe (List String))
-    | GetLocalBreedData ( String, Maybe (List String) )
+    = GetDogsList (Result Http.Error DogsListResponse)
+    | GetBreedPics String (Result Http.Error DogPicturesResponse)
+    | ChangeView String
+    | Go Direction
+    | GetLocalData ( String, Maybe (List String) )
 
 
 
@@ -156,13 +158,10 @@ type Msg
 port setStorage : ( String, E.Value ) -> Cmd msg
 
 
-port getStorage : String -> Cmd msg
+port requestStorage : String -> Cmd msg
 
 
-port returnAllStorage : (Maybe (List String) -> msg) -> Sub msg
-
-
-port returnBreedStorage : (( String, Maybe (List String) ) -> msg) -> Sub msg
+port returnStorage : (( String, Maybe (List String) ) -> msg) -> Sub msg
 
 
 main : Program E.Value Model Msg
@@ -202,7 +201,7 @@ init flags =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch [ returnBreedStorage GetLocalBreedData, returnAllStorage GetLocalAllData ]
+    Sub.batch [ returnStorage GetLocalData ]
 
 
 updateWithStorage : Msg -> Model -> ( Model, Cmd Msg )
@@ -212,7 +211,7 @@ updateWithStorage msg oldModel =
             update msg oldModel
     in
     case msg of
-        DogsList _ ->
+        GetDogsList _ ->
             case newModel.view of
                 Success v ->
                     ( newModel, Cmd.batch [ setStorage ( "all", listEncoder v.data ), cmds ] )
@@ -220,7 +219,7 @@ updateWithStorage msg oldModel =
                 _ ->
                     ( newModel, cmds )
 
-        DogPictures name _ ->
+        GetBreedPics name _ ->
             case newModel.view of
                 Success v ->
                     ( newModel, Cmd.batch [ setStorage ( name, listEncoder v.data ), cmds ] )
@@ -235,7 +234,7 @@ updateWithStorage msg oldModel =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        DogsList response ->
+        GetDogsList response ->
             case response of
                 Ok result ->
                     let
@@ -259,15 +258,12 @@ update msg model =
                 Err _ ->
                     ( { model | view = Failure }, Cmd.none )
 
-        ViewBreed name ->
+        ChangeView name ->
             ( { model | view = Loading }
-            , getStorage name
+            , requestStorage name
             )
 
-        ViewAll ->
-            ( { model | view = Loading }, getStorage "all" )
-
-        GetLocalBreedData ( breed, data ) ->
+        GetLocalData ( breed, data ) ->
             case data of
                 Just d ->
                     ( { model
@@ -285,17 +281,15 @@ update msg model =
                     )
 
                 Nothing ->
-                    ( model, getBreedPics breed )
+                    ( model
+                    , if breed == "all" then
+                        getDogsList
 
-        GetLocalAllData data ->
-            case data of
-                Just d ->
-                    ( { model | view = Success { current = "all", data = d } }, Cmd.none )
+                      else
+                        getBreedPics breed
+                    )
 
-                Nothing ->
-                    ( model, getDogsList )
-
-        DogPictures name response ->
+        GetBreedPics name response ->
             case response of
                 Ok result ->
                     let
@@ -320,19 +314,25 @@ update msg model =
                 Err _ ->
                     ( { model | view = Failure }, Cmd.none )
 
-        GoToNextPage ->
+        Go direction ->
             let
                 page =
                     model.page
             in
-            ( { model | page = { page | cursor = page.cursor + offset } }, Cmd.none )
+            ( { model
+                | page =
+                    { page
+                        | cursor =
+                            case direction of
+                                Back ->
+                                    page.cursor - offset
 
-        GoToPreviousPage ->
-            let
-                page =
-                    model.page
-            in
-            ( { model | page = { page | cursor = page.cursor - offset } }, Cmd.none )
+                                Forward ->
+                                    page.cursor + offset
+                    }
+              }
+            , Cmd.none
+            )
 
 
 view : Model -> Html Msg
@@ -374,7 +374,7 @@ view model =
                                     , style "border" "none"
                                     , style "cursor" "pointer"
                                     , style "text-decoration" "underline"
-                                    , onClick (ViewBreed (getBreedAndSubBreed name))
+                                    , onClick (ChangeView (getBreedAndSubBreed name))
                                     ]
                                     [ text name ]
                                 ]
@@ -421,7 +421,7 @@ view model =
                                 ]
                                 [ button
                                     [ disabled isFirstPage
-                                    , onClick GoToPreviousPage
+                                    , onClick (Go Back)
                                     , style "font-size" "16px"
                                     , style "background-color" "white"
                                     , style "padding" "8px 16px"
@@ -446,7 +446,7 @@ view model =
                                     [ text "Back" ]
                                 , button
                                     [ disabled isLastPage
-                                    , onClick GoToNextPage
+                                    , onClick (Go Forward)
                                     , style "font-size" "16px"
                                     , style "background-color" "white"
                                     , style "padding" "8px 16px"
@@ -487,7 +487,7 @@ view model =
                                 , style "align-items" "center"
                                 ]
                                 [ button
-                                    [ onClick ViewAll
+                                    [ onClick (ChangeView "all")
                                     , style "font-size" "16px"
                                     , style "background-color" "white"
                                     , style "padding" "8px 16px"
@@ -495,7 +495,7 @@ view model =
                                     , style "border-radius" "5%"
                                     , style "cursor" "pointer"
                                     ]
-                                    [ text "Back" ]
+                                    [ text "Return Home" ]
                                 ]
                             ]
                     )
